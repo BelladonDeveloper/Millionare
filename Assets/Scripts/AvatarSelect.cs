@@ -9,6 +9,8 @@ public class AvatarSelect : MonoBehaviour
 {
     public GameObject filesListPan, filesContent, filePrefab;
     public RawImage avatarImg;
+    public GameObject logo;
+    public GameObject answerButtonGroup;
 
     public static AvatarSelect instance;
 
@@ -24,7 +26,8 @@ public class AvatarSelect : MonoBehaviour
     public void LoadAvatarList()
     {
         filesListPan.SetActive(true);
-        //avatarImg.gameObject.SetActive(false);
+        logo.SetActive(false);
+        answerButtonGroup.SetActive(false);
         files = new string[] { "*.jpeg", "*.jpg", "*.png" }.SelectMany(ext => directoryInfo.GetFiles(ext, SearchOption.TopDirectoryOnly)).ToArray();
         instancedObjects = new GameObject[files.Length];
         for (int i = 0; i < files.Length; i++)
@@ -42,7 +45,8 @@ public class AvatarSelect : MonoBehaviour
         avatarImg.texture = www.texture;
 
         filesListPan.SetActive(false);
-        //avatarImg.gameObject.SetActive(true);
+        logo.SetActive(true);
+        answerButtonGroup.SetActive(true);
 
         foreach (GameObject obj in instancedObjects)
             Destroy(obj);

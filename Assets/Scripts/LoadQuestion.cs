@@ -4,24 +4,34 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using System.Text.RegularExpressions;
 
 public class LoadQuestion : MonoBehaviour
 {
     public GameObject filesListPan, filesContent, filePrefab;
     public static LoadQuestion instance;
+
     public Text question;
     public Text[] questionsArray;
-    public ToggleGroup toggleGroup;
-    public Toggle[] toggles;
+    public GameObject restartGame;
+    public GameObject logo;
+    public GameObject answerButtonGroup;
+    public GameObject applyButton;
+    public GameObject[] answerButtons;
+    public Sprite[] startAnswerSprites;
+    public Sprite[] trueAnswerSprites;
+    public Sprite[] falseAnswerSprites;
+
     public Image imFF;
     public Sprite disableSpriteFF;
     public Image imHP;
     public Sprite disableSpriteHP;
     public Image imCF;
     public Sprite disableSpriteCF;
-    public Image[] prize;
-    public Sprite[] spritePrizes;
+
     public RawImage selectTextFile;
+
+    public Transform activeAnswer;
 
     /*
     public Text timerText;
@@ -30,26 +40,34 @@ public class LoadQuestion : MonoBehaviour
 
     private GameObject[] instancedObjects;
     private DirectoryInfo[] files;
+
     private string liteQuestionList;
     private string middleQuestionList;
     private string hardQuestionList;
     private string folderPath;
     private List<string> eachLine;
+    private string[] questionArrays;
+
     private int amountLines;
     private int numberQuestion = 0;
+    private int delayCheckAnswer = 2;
     private int[] listPastQuestions;
+    private int trueAnswers = 0;
+    private int folderIndex = 0;
+    private int trueAnswer;
+    private int numberOfChoise;
+
+    private float upIndex = 0.30f;
+    private float prizePosition;
+
     private bool isFiftyFifty = true;
     private bool isHelpPublic = true;
     private bool isCallFriend = true;
-    private int numberOfPrize = 0;
-    private int folderIndex = 0;
-
+	private bool isGameOver = false;
+    
     void Start()
     {
-        imFF.gameObject.SetActive(false);
-        imHP.gameObject.SetActive(false);
-        imCF.gameObject.SetActive(false);
-        toggleGroup.gameObject.SetActive(false);
+        prizePosition = activeAnswer.position.y;
     }
 
     private void Awake()
@@ -112,6 +130,8 @@ public class LoadQuestion : MonoBehaviour
         DirectoryInfo directoryInfo = new DirectoryInfo("Questions");
         files = directoryInfo.GetDirectories("*.*", SearchOption.AllDirectories);
 
+        logo.SetActive(false);
+        answerButtonGroup.SetActive(false);
         filesListPan.SetActive(true);
         instancedObjects = new GameObject[files.Length];
         for (int i = 0; i < files.Length; i++)
@@ -129,10 +149,8 @@ public class LoadQuestion : MonoBehaviour
 
         filesListPan.SetActive(false);
         selectTextFile.gameObject.SetActive(false);
-        toggleGroup.gameObject.SetActive(true);
-        imFF.gameObject.SetActive(true);
-        imHP.gameObject.SetActive(true);
-        imCF.gameObject.SetActive(true);
+        logo.SetActive(true);
+        answerButtonGroup.SetActive(true);
 
         foreach (GameObject obj in instancedObjects)
             Destroy(obj);
@@ -152,7 +170,7 @@ public class LoadQuestion : MonoBehaviour
 
         if (liteQuestionList != null)
         {
-            LoadFileQuestion(liteQuestionList);
+            //LoadFileQuestion(liteQuestionList);
 
             numberQuestion = Random.Range(0, (amountLines / 5) - 1) * 5; // випадкове запитання
 
@@ -162,14 +180,30 @@ public class LoadQuestion : MonoBehaviour
         }
     }
 
-    private void LoadFileQuestion(string file)
+    private void LoadFileQuestion(string file, int index)
     {
-        string allQuestionList = File.ReadAllText(file);
+        string allQuestionList = file; //File.ReadAllText(file);
+        if (index == 0)
+            allQuestionList = allQuestionList.Substring(18);
+        else
+            allQuestionList = allQuestionList.Substring(17);
+
+        string[] tempList = allQuestionList.Split('\n');
 
         eachLine = new List<string>();
-        eachLine.AddRange(
-                    allQuestionList.Split("\n"[0])); // текст в листі порядково
 
+        int lengthList = tempList.Length;
+        if (index == 4)
+            lengthList++;
+        for (int i = 0; i < tempList.Length - 1; i++)
+        {
+            Debug.Log(tempList[i]);
+            eachLine.AddRange(tempList[i].Split(',')); //"\n"[0])); // текст в листі порядково
+        }
+        foreach (var item in eachLine)
+        {
+            item.Replace('.', ',');
+        }
         amountLines = eachLine.Count; // кількість рядків
 
         listPastQuestions = new int[amountLines / 5]; // створюємо список для використаних запитань
@@ -181,31 +215,40 @@ public class LoadQuestion : MonoBehaviour
 
     private void UpdateScene()
     {
-        UpPrize();
+        if (trueAnswers == 14)
+            Victory();
+        else
+        {
+            UpPrize();
 
-        SetRandomQuestion();
+            SetRandomQuestion();
 
-        PutQuestionToList();
+            PutQuestionToList();
 
-        LoadQuestionAndAnswersToScreen();
+            LoadQuestionAndAnswersToScreen();
+        }
     }
 
-    private void CheckAnswer(Toggle toggle)
+    public void CheckAnswer(Text text)
     {
+		if (isGameOver == false)
+		{
+			int trueAnswer = FindTrueAnswer();
+			numberOfChoise = int.Parse(text.name.ToString());
+			if (trueAnswer == numberOfChoise)
+			{
+				answerButtons[trueAnswer].GetComponent<Image>().sprite = trueAnswerSprites[trueAnswer];
+				Invoke("UpdateScene", delayCheckAnswer);
+			}
+			else
+			{
+				answerButtons[numberOfChoise].GetComponent<Image>().sprite = trueAnswerSprites[trueAnswer];
+
+				Invoke("GameOver", delayCheckAnswer);
+			}
+		}
+		
         //timerCount = 61;
-
-        if (toggle.isOn)
-        {
-            int i = FindTrueAnswer();
-
-            if (toggle == toggles[i])
-            {
-                UpdateScene();
-            }
-            else GameOver();
-
-            toggle.isOn = false;
-        }
     }
 
     private int FindTrueAnswer()
@@ -225,28 +268,45 @@ public class LoadQuestion : MonoBehaviour
 
     private void UpPrize()
     {
-        if (numberOfPrize < 14)
+        if (trueAnswers < 14)
         {
-            prize[numberOfPrize].sprite = spritePrizes[numberOfPrize + 15];
-            prize[numberOfPrize + 1].sprite = spritePrizes[numberOfPrize + 1];
-            numberOfPrize++;
+            activeAnswer.position =
+                new Vector3(activeAnswer.position.x, activeAnswer.position.y + upIndex, activeAnswer.position.z);
 
-            if (numberOfPrize == 5)
-                if (middleQuestionList != null)
-                    LoadFileQuestion(middleQuestionList);
+            trueAnswers++;
+            Debug.Log(trueAnswers);
 
-            if (numberOfPrize == 10)
-                if (hardQuestionList != null)
-                    LoadFileQuestion(hardQuestionList);
+            if (trueAnswers == 3)
+                if (questionArrays[1] != null)
+                {
+                    LoadFileQuestion(questionArrays[1], 1);
+                }
+            if (trueAnswers == 5)
+                prizePosition = activeAnswer.position.y - upIndex;
+
+            if (trueAnswers == 6)
+                if (questionArrays[2] != null)
+                {
+                    LoadFileQuestion(questionArrays[2], 2);
+                }
+            if (trueAnswers == 9)
+                if (questionArrays[3] != null)
+                {
+                    LoadFileQuestion(questionArrays[3], 3);
+                }
+            if (trueAnswers == 10)
+                prizePosition = activeAnswer.position.y - upIndex;
+            if (trueAnswers == 12)
+                if (questionArrays[4] != null)
+                {
+                    LoadFileQuestion(questionArrays[4], 4);
+                }
+            if (trueAnswers == 13)
+                prizePosition = activeAnswer.position.y - upIndex;
         }
         else
         {
-            question.text = "Ви виграли";
-            questionsArray[0].text = "";
-            questionsArray[1].text = "";
-            questionsArray[2].text = "";
-            questionsArray[3].text = "";
-            SceneManager.LoadScene(1);
+            Victory();
         }
     }
 
@@ -258,6 +318,10 @@ public class LoadQuestion : MonoBehaviour
         questionsArray[1].text = eachLine[numberQuestion + array[1]];
         questionsArray[2].text = eachLine[numberQuestion + array[2]];
         questionsArray[3].text = eachLine[numberQuestion + array[3]];
+        for(int i = 0; i < 4; i++)
+        {
+            answerButtons[i].GetComponent<Image>().sprite = startAnswerSprites[i];
+        }
     }
 
     private void SetRandomQuestion()
@@ -297,7 +361,7 @@ public class LoadQuestion : MonoBehaviour
                     {
                         listPastQuestions[j] = -1; // то очищаємо список використаних запитань
                     }
-                } else break; // якщо запитання покладено, то виходимо зі повторення, щоб не перевіряти решту списку
+                } else break; // якщо запитання покладено, то виходимо з повторення, щоб не перевіряти решту списку
             }
         }
     }
@@ -346,33 +410,44 @@ public class LoadQuestion : MonoBehaviour
             return array;
     }
     
+    private void Victory()
+    {
+        question.text = "Ви виграли 1 000 000";
+
+        restartGame.SetActive(true);
+    }
+
     private void GameOver()
     {
+        answerButtons[trueAnswer].GetComponent<Image>().sprite = trueAnswerSprites[trueAnswer];
+
+        answerButtons[numberOfChoise].GetComponent<Image>().sprite = falseAnswerSprites[numberOfChoise];
+
+		isGameOver = true;
         Debug.Log("GameOver");
-        question.text = "Ви програли";
-        questionsArray[0].text = "";
-        questionsArray[1].text = "";
-        questionsArray[2].text = "";
-        questionsArray[3].text = "";
-        SceneManager.LoadScene(1);
-    }
+		
+        switch (trueAnswers)
+        {
+            case int n when (n < 4):
+                {
+                    question.text = "Ви програли";
+                    break;
+                }
+            case int n when (n > 4 && n < 10):
+                {
+                    question.text = "Ви виграли 1 000";
+                    break;
+                }
+            case int n when (n > 9 && n < 15):
+                {
+                    question.text = "Ви виграли 32 000";
+                    break;
+                }
+        }
+        activeAnswer.position =
+            new Vector3(activeAnswer.position.x, prizePosition, activeAnswer.position.z);
 
-    void OnEnable()
-    {
-        //Register Toggle Events
-        toggles[0].onValueChanged.AddListener(delegate { CheckAnswer(toggles[0]); });
-        toggles[1].onValueChanged.AddListener(delegate { CheckAnswer(toggles[1]); });
-        toggles[2].onValueChanged.AddListener(delegate { CheckAnswer(toggles[2]); });
-        toggles[3].onValueChanged.AddListener(delegate { CheckAnswer(toggles[3]); });
-    }
-
-    void OnDisable()
-    {
-        //Un-Register Toggle Events
-        toggles[0].onValueChanged.RemoveAllListeners();
-        toggles[1].onValueChanged.RemoveAllListeners();
-        toggles[2].onValueChanged.RemoveAllListeners();
-        toggles[3].onValueChanged.RemoveAllListeners();
+        restartGame.SetActive(true);
     }
 
     public void QuitGame()
@@ -385,6 +460,35 @@ public class LoadQuestion : MonoBehaviour
 #else
         Application.Quit();
 #endif
+    }
+
+    public void SelectTable(string ID) //Deprecated
+    {
+        LoadFromSheets.googleSheetDocID = ID;
+    }
+
+    public void OnApplyClick()
+    {
+        applyButton.SetActive(false);
+
+        System.Action<string> data = null;
+
+        StartCoroutine(LoadFromSheets.DownloadData(data));
+
+        string downloadData = PlayerPrefs.GetString("LastDataDownloaded", null);
+
+        questionArrays = downloadData.Split('*');
+
+        if (questionArrays[0] != null)
+        {
+            LoadFileQuestion(questionArrays[0], 0);
+        }
+
+        numberQuestion = Random.Range(0, (amountLines / 5) - 1) * 5; // випадкове запитання
+
+        PutQuestionToList();
+
+        LoadQuestionAndAnswersToScreen();
     }
 
     /*
