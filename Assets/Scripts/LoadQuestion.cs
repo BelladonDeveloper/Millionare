@@ -47,13 +47,15 @@ public class LoadQuestion : MonoBehaviour
     private string folderPath;
     private List<string> eachLine;
     private string[] questionArrays;
+    private string SPLIT_RE = @",(?=(?:[^""]*""[^""]*"")*(?![^""]*""))";
+    private char[] TRIM_CHARS = { '\"' };
 
     private int amountLines;
     private int numberQuestion = 0;
     private int delayCheckAnswer = 2;
     private int[] listPastQuestions;
     private int trueAnswers = 0;
-    private int folderIndex = 0;
+    //private int folderIndex = 0;
     private int trueAnswer;
     private int numberOfChoise;
 
@@ -188,7 +190,7 @@ public class LoadQuestion : MonoBehaviour
         else
             allQuestionList = allQuestionList.Substring(17);
 
-        string[] tempList = allQuestionList.Split('\n');
+        string[] tempList = allQuestionList.Split('\n'); // текст в листі порядково
 
         eachLine = new List<string>();
 
@@ -198,7 +200,13 @@ public class LoadQuestion : MonoBehaviour
         for (int i = 0; i < tempList.Length - 1; i++)
         {
             Debug.Log(tempList[i]);
-            eachLine.AddRange(tempList[i].Split(',')); //"\n"[0])); // текст в листі порядково
+            //eachLine.AddRange(tempList[i].Split(',')); //"\n"[0]));
+            var values = Regex.Split(tempList[i], SPLIT_RE);
+            if (values.Length == 0 || values[0] == "") continue;
+            for (int j = 0; j < values.Length; j++)
+            {
+                eachLine.Add(values[j]);
+            }
         }
         foreach (var item in eachLine)
         {
@@ -476,7 +484,7 @@ public class LoadQuestion : MonoBehaviour
         StartCoroutine(LoadFromSheets.DownloadData(data));
 
         string downloadData = PlayerPrefs.GetString("LastDataDownloaded", null);
-
+        
         questionArrays = downloadData.Split('*');
 
         if (questionArrays[0] != null)
